@@ -1,0 +1,97 @@
+os: windows
+language: cpp
+
+git:
+  submodules: false
+
+env:
+  global:
+    - QT_INSTALL_DIR=~/Qt
+    - QT_VERSION=5.12.6
+
+stages:
+  - name: Build ultrasound-client with ffmpeg+libsrt & Qt MinGW
+
+before_install:
+- |-
+    test -n "$GITHUB_TOKEN" && echo -e "machine github.com\n  login $GITHUB_TOKEN" > ~/.netrc
+    git clone ${BRANCH_PARAM} https://github.com/{REPO_PATH}.git {REPO_PATH} && export REPO_DIR=$PWD/${REPO_PATH}    
+    case $TRAVIS_OS_NAME in
+      windows)
+        [[ ! -f C:/tools/msys64/msys2_shell.cmd ]] && rm -rf C:/tools/msys64
+        choco uninstall -y mingw
+        choco upgrade --no-progress -y msys2
+        export MINGW_PREFIX="mingw-w64-i686"
+        export MINGW_INSTALLS="mingw32"
+        export msys2='cmd //C RefreshEnv.cmd '
+        export msys2+='& set MSYS=winsymlinks:nativestrict '
+        export msys2+='& C:\\tools\\msys64\\msys2_shell.cmd -defterm -no-start'
+        export mingw="$msys2 -${MINGW_INSTALLS} -full-path -here -c "\"\$@"\" --"
+        export msys2+=" -msys2 -c "\"\$@"\" --"
+        ## Install more MSYS2 packages from https://packages.msys2.org/base here
+        taskkill //IM gpg-agent.exe //F  # https://travis-ci.community/t/4967
+        export PATH=/C/tools/msys64/${MINGW_INSTALLS}/bin:$PATH
+        export MAKE=mingw32-make  # so that Autotools can find it
+        ;;
+    esac
+install:
+- |-
+    case $TRAVIS_OS_NAME in
+      windows)
+        # Install build tools & Breakpad & NSIS
+        $msys2 pacman --sync --noconfirm --needed ${MINGW_PREFIX}-gcc ${MINGW_PREFIX}-make dos2unix ${MINGW_PREFIX}-breakpad-git ${MINGW_PREFIX}-nsis
+        echo pwd=$PWD
+        echo HOME=$HOME
+        export TMP_DIR=`mktemp -d 2>/dev/null || mktemp -d -t 'build'`
+        cd ${TMP_DIR}
+        # Build and install ffmpeg+libsrt
+        $msys2 pacman -Q ${MINGW_PREFIX}-ffmpeg-libsrt  || (
+          dos2unix -n ${REPO_DIR}/misc/mingw-w64-ffmpeg/PKGBUILD ./PKGBUILD
+          $msys2 makepkg-mingw -scCLf --skippgpcheck --noconfirm --needed
+          $msys2 pacman -U ${MINGW_PREFIX}-ffmpeg-libsrt-*-any.pkg.tar.* --noconfirm --needed
+          rm -rf *        
+        )
+        # Install Qt
+        echo "Downloading install-qt.sh..." >&2
+        wget https://code.qt.io/cgit/qbs/qbs.git/plain/scripts/install-qt.sh
+        chmod ugo+x ./install-qt.sh
+        ./install-qt.sh -d ${QT_INSTALL_DIR} --version ${QT_VERSION} --host windows_x86 --target desktop --toolchain win32_mingw73 qtbase qtdeclarative qtimageformats qtsvg qtwebsockets qttools qttranslations
+        export QMAKE_PATH=${QT_INSTALL_DIR}/${QT_VERSION}/mingw73_32/bin/qmake.exe
+        # Build and install QtAV
+        if [[ ! -f ${QT_INSTALL_DIR}/${QT_VERSION}/mingw73_32/mkspecs/modules/qt_lib_avwidgets.pri ]]; then
+          git clone https://github.com/wang-bin/QtAV.git
+          ${QMAKE_PATH} ./QtAV/QtAV.pro "CONFIG+=build_all" && ${MAKE} && (./sdk_uninstall.bat; ./sdk_install.bat)
+          rm -rf *
+        fi
+        taskkill //IM gpg-agent.exe //F
+        #Install sentry-cli
+        wget -O sentry-cli.exe $(curl -sL https://sentry.io/get-cli/ | egrep -o "^SENTRY_DOWNLOAD_Windows_$(uname -m)=\"[^\"]*\"$" | grep -o "\"[^\"]*\"" | grep -o "[^\"]*")
+        ;;
+    esac
+script:
+- |-
+    echo DEFINES += MINIDUMP_UPLOAD_URL=\\\"\\\\\\\"${MINIDUMP_UPLOAD_URL}\\\\\\\"\\\" >> ${REPO_DIR}/.qmake.conf
+    ${QMAKE_PATH} ${REPO_DIR}/UltraSoundClient.pro -spec win32-g++ && ${MAKE} qmake_all && ${MAKE} -j $(nproc --all)
+    ${MAKE} clean
+    export fileVersion=`powershell -NoLogo -NoProfile -Command \(Get-Item "release\\UltraSoundClient.exe"\).VersionInfo.FileVersion`
+    [[ -n "$fileVersion" ]] && makensis -DOUTPUTDIR="$(PWD)/" -DVERSION="$fileVersion" -DSRCEXEDIR="$(PWD)/release" -DSRCMINGWDIR="/C/tools/msys64/${MINGW_INSTALLS}" -DSRCQTDIR="${QT_INSTALL_DIR}/${QT_VERSION}/mingw73_32" -V4 ${REPO_DIR}/misc/package.nsi
+    powershell -c "./installer${fileVersion}.exe /S /D=$(cygpath -w $TMP_DIR)\\install"
+    ${TMP_DIR}/install/UltraSoundClient.exe --minidump=
+deploy:
+  - provider: script
+    script: sentry-cli upload-dif release\UltraSoundClient.exe.sym && sentry-cli releases new $fileVersion &&
+            sentry-cli releases finalize $fileVersion && sentry-cli releases files $fileVersion upload release\UltraSoundClient.exe &&
+            sentry-cli releases files $fileVersion upload installer${fileVersion}.exe
+before_cache:
+- |-
+    case $TRAVIS_OS_NAME in
+      windows)
+        # https://unix.stackexchange.com/a/137322/107554
+        $msys2 pacman --sync --clean --noconfirm
+        ;;
+    esac
+cache:
+    directories:
+    - $HOME/AppData/Local/Temp/chocolatey
+    - /C/tools/msys64
+    - ${QT_INSTALL_DIR}
