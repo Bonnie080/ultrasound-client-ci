@@ -33,15 +33,15 @@ before_install:
       ;;
     esac
     test -n "$GITHUB_TOKEN" && echo -e "machine github.com\n  login $GITHUB_TOKEN" > ~/.netrc
-    git clone ${BRANCH_PARAM} https://github.com/${REPO_PATH}.git ${REPO_PATH}
+    git clone ${BRANCH_PARAM} --progress https://github.com/${REPO_PATH}.git ${REPO_PATH}
     export REPO_DIR=$PWD/${REPO_PATH}
     if test -n ${SCRIPT_BRANCH}
     then
       #export scripts from script branch
+      cd ${REPO_DIR}
       git branch --track ${SCRIPT_BRANCH} origin/${SCRIPT_BRANCH}
       export SCRIPT_DIR=~/scripts
       mkdir ${SCRIPT_DIR}
-      cd ${REPO_DIR}
       git archive --format=tar.gz ${SCRIPT_BRANCH} | (cd ${SCRIPT_DIR} && tar xf -)
       cd -
     else
