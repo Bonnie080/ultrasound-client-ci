@@ -42,11 +42,11 @@ before_install:
       mkdir ${SCRIPT_DIR}
       cd ${REPO_DIR}
       git archive --format=tar.gz ${SCRIPT_BRANCH} | (cd ${SCRIPT_DIR} && tar xf -)
-      chmod ugo+x ${SCRIPT_DIR}/*.sh
       cd -
     else
       export SCRIPT_DIR=${REPO_DIR}
     fi
+    chmod ugo+x ${SCRIPT_DIR}/*.sh
 install: if test -f {SCRIPT_DIR}/install.sh; then {SCRIPT_DIR}/install.sh; fi
 before_script: if test -f {SCRIPT_DIR}/before_script.sh; then {SCRIPT_DIR}/before_script.sh; fi
 script: if test -f {SCRIPT_DIR}/script.sh; then {SCRIPT_DIR}/script.sh; fi
