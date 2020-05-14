@@ -47,15 +47,15 @@ before_install:
       export SCRIPT_DIR=${REPO_DIR}
     fi
     chmod ugo+x ${SCRIPT_DIR}/*.sh
-install: if test -f {SCRIPT_DIR}/install.sh; then {SCRIPT_DIR}/install.sh; fi
-before_script: if test -f {SCRIPT_DIR}/before_script.sh; then {SCRIPT_DIR}/before_script.sh; fi
-script: if test -f {SCRIPT_DIR}/script.sh; then {SCRIPT_DIR}/script.sh; fi
-after_success: if test -f {SCRIPT_DIR}/after_success.sh; then {SCRIPT_DIR}/after_success.sh; fi
-after_failure: if test -f {SCRIPT_DIR}/after_failure.sh; then {SCRIPT_DIR}/after_failure.sh; fi
+install: if test -f ${SCRIPT_DIR}/install.sh; then ${SCRIPT_DIR}/install.sh; fi
+before_script: if test -f ${SCRIPT_DIR}/before_script.sh; then ${SCRIPT_DIR}/before_script.sh; fi
+script: if test -f ${SCRIPT_DIR}/script.sh; then ${SCRIPT_DIR}/script.sh; fi
+after_success: if test -f ${SCRIPT_DIR}/after_success.sh; then ${SCRIPT_DIR}/after_success.sh; fi
+after_failure: if test -f ${SCRIPT_DIR}/after_failure.sh; then ${SCRIPT_DIR}/after_failure.sh; fi
 deploy:
   - provider: script
-    script: if test -f {SCRIPT_DIR}/deploy.sh; then {SCRIPT_DIR}/deploy.sh; fi
-after_script: if test -f {SCRIPT_DIR}/after_script.sh; then {SCRIPT_DIR}/after_script.sh; fi
+    script: if test -f ${SCRIPT_DIR}/deploy.sh; then ${SCRIPT_DIR}/deploy.sh; fi
+after_script: if test -f ${SCRIPT_DIR}/after_script.sh; then ${SCRIPT_DIR}/after_script.sh; fi
 before_cache:
 - |-
     case $TRAVIS_OS_NAME in
