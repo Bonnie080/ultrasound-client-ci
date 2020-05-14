@@ -75,8 +75,8 @@ script:
     ${MAKE} clean
     export fileVersion=`powershell -NoLogo -NoProfile -Command \(Get-Item "release\\UltraSoundClient.exe"\).VersionInfo.FileVersion`
     [[ -n "$fileVersion" ]] && makensis -DOUTPUTDIR="$(PWD)/" -DVERSION="$fileVersion" -DSRCEXEDIR="$(PWD)/release" -DSRCMINGWDIR="/C/tools/msys64/${MINGW_INSTALLS}" -DSRCQTDIR="${QT_INSTALL_DIR}/${QT_VERSION}/mingw73_32" -V4 ${REPO_DIR}/misc/package.nsi
-    powershell -c "./installer${fileVersion}.exe /S /D=$(cygpath -w $TMP_DIR)\\install"
-    ${TMP_DIR}/install/UltraSoundClient.exe --minidump=
+    powershell -NoLogo -NoProfile -NonInteractive -Command "./installer${fileVersion}.exe /S /D=$(cygpath -w $TMP_DIR)\\install"
+    ${TMP_DIR}/install/UltraSoundClient.exe --minidump= || ls -R ${TMP_DIR}/install
 deploy:
   - provider: script
     script: sentry-cli upload-dif release\UltraSoundClient.exe.sym && sentry-cli releases new $fileVersion &&
