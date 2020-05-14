@@ -33,7 +33,7 @@ before_install:
       ;;
     esac
     test -n "$GITHUB_TOKEN" && echo -e "machine github.com\n  login $GITHUB_TOKEN" > ~/.netrc
-    git clone $BRANCH_PARAM https://github.com/{REPO_PATH}.git {REPO_PATH}
+    git clone $BRANCH_PARAM https://github.com/${REPO_PATH}.git ${REPO_PATH}
     export REPO_DIR=$PWD/${REPO_PATH}
     if test -n ${SCRIPT_BRANCH}
     then
